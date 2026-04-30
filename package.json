@@ -1,5 +1,5 @@
 {
-  "name": "react-native-commio",
+  "name": "@smarter-contact-team/react-native-commio",
   "version": "0.1.0",
   "description": "twillio calling SDK",
   "main": "lib/commonjs/index",
@@ -41,16 +41,17 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ghafarSC/react-native-commio.git"
+    "url": "git+https://github.com/smarter-contact-team/react-native-commio.git"
   },
   "author": "Ghafar Tanveer <Ghafar@smartercontact.com> (https://github.com/ghafarSC)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/ghafarSC/react-native-commio/issues"
+    "url": "https://github.com/smarter-contact-team/react-native-commio/issues"
   },
-  "homepage": "https://github.com/ghafarSC/react-native-commio#readme",
+  "homepage": "https://github.com/smarter-contact-team/react-native-commio#readme",
   "publishConfig": {
-    "registry": "https://registry.npmjs.org/"
+    "registry": "https://npm.pkg.github.com",
+    "repository": "https://github.com/smarter-contact-team/react-native-commio"
   },
   "devDependencies": {
     "@commitlint/config-conventional": "^17.0.2",
