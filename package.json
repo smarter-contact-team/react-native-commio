@@ -1,6 +1,6 @@
 {
   "name": "@smarter-contact-team/react-native-commio",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "twillio calling SDK",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
