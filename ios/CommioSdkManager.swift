@@ -33,6 +33,7 @@ final class CommioSdkManager: RCTEventEmitter{
     var activeCall: Call? = nil
     var activeCallInvite: CallInvite? = nil
     var audioDevice = DefaultAudioDevice()
+    var ringbackPlayer: AVAudioPlayer? = nil
     
     static var shared: CommioSdkManager?
     
@@ -244,6 +245,52 @@ final class CommioSdkManager: RCTEventEmitter{
         CommioSdkManager.pushCredentials = credentials
     }
     
+    // SC-20649: with answerOnBridge the callee's ringing is silent, so play our own ringback.
+    func startRingback() {
+        stopRingback()
+        do {
+            let player = try AVAudioPlayer(data: CommioSdkManager.ringbackWav())
+            player.numberOfLoops = -1
+            player.volume = 0.5
+            player.play()
+            ringbackPlayer = player
+        } catch {
+            NSLog("startRingback: \(error.localizedDescription)")
+        }
+    }
+
+    func stopRingback() {
+        ringbackPlayer?.stop()
+        ringbackPlayer = nil
+    }
+
+    // US ringback, one cycle: 440 + 480 Hz for 2 s, then 4 s of silence (16-bit mono WAV).
+    static func ringbackWav() -> Data {
+        let sampleRate = 8000
+        let toneSamples = sampleRate * 2
+        let totalSamples = sampleRate * 6
+        var pcm = Data(capacity: totalSamples * 2)
+        for i in 0..<totalSamples {
+            var sample: Int16 = 0
+            if i < toneSamples {
+                let t = Double(i) / Double(sampleRate)
+                sample = Int16(8000 * (sin(2 * .pi * 440 * t) + sin(2 * .pi * 480 * t)))
+            }
+            withUnsafeBytes(of: sample.littleEndian) { pcm.append(contentsOf: $0) }
+        }
+        var wav = Data()
+        func append<T: FixedWidthInteger>(_ value: T) {
+            withUnsafeBytes(of: value.littleEndian) { wav.append(contentsOf: $0) }
+        }
+        wav.append(contentsOf: Array("RIFF".utf8)); append(UInt32(36 + pcm.count))
+        wav.append(contentsOf: Array("WAVEfmt ".utf8)); append(UInt32(16))
+        append(UInt16(1)); append(UInt16(1)); append(UInt32(sampleRate))
+        append(UInt32(sampleRate * 2)); append(UInt16(2)); append(UInt16(16))
+        wav.append(contentsOf: Array("data".utf8)); append(UInt32(pcm.count))
+        wav.append(pcm)
+        return wav
+    }
+
     @objc func isDebug() -> Bool {
 #if DEBUG
         return true
@@ -263,11 +310,13 @@ extension CommioSdkManager: CallDelegate {
         } else {
             CommioSdkManager.shared?.audioDevice.isEnabled = true
             CommioSdkManager.shared?.audioDeviceManager.isBluetoothDeviceConnected()
+            CommioSdkManager.shared?.startRingback()
             CommioSdkManager.shared?.sendEvent(withName: "onOutgoingCallRinging", body: "");
         }
     }
     func callDidConnect(call: Call) {
 //        print("callDidConnect")
+        CommioSdkManager.shared?.stopRingback()
         if CommioSdkManager.shared!.activeCallInvite != nil {
             CommioSdkManager.shared?.sendEvent(withName: "onIncomingCallAnswered", body: "");
 //            CommioSdkManager.shared?.toggleAudioRoute(toSpeaker: true)
@@ -283,6 +332,7 @@ extension CommioSdkManager: CallDelegate {
     
     func callDidFailToConnect(call: Call, error: Error) {
 //        print("callDidFailToConnect: \(error.localizedDescription)")
+        CommioSdkManager.shared?.stopRingback()
         CommioSdkManager.shared?.audioDevice.isEnabled = false
         
         if CommioSdkManager.shared!.activeCallInvite != nil {
@@ -297,6 +347,7 @@ extension CommioSdkManager: CallDelegate {
     
     func callDidDisconnect(call: Call, error: Error?) {
 //        print("callDidDisconnect: \(error?.localizedDescription)")
+        CommioSdkManager.shared?.stopRingback()
         CommioSdkManager.shared?.audioDevice.isEnabled = false
         if CommioSdkManager.shared!.activeCallInvite != nil {
             let body = CommioSdkManager.shared?.convertIncomingCallToObject(CommioSdkManager.incomingPayload)
