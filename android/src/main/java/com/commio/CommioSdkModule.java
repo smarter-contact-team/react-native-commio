@@ -2,6 +2,7 @@ package com.commio;
 
 import android.content.Context;
 import android.media.AudioManager;
+import android.media.ToneGenerator;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -43,6 +44,7 @@ public class CommioSdkModule extends ReactContextBaseJavaModule {
 
     private Map<String, String> incomingCallPayload = null;
     private AudioManager myAudioManager;
+    private ToneGenerator ringbackTone;
 
     public static Map<String, String> extractValues(String input) {
         Map<String, String> resultMap = new HashMap<>();
@@ -246,6 +248,26 @@ public class CommioSdkModule extends ReactContextBaseJavaModule {
         }
     }
 
+    // SC-20649: with answerOnBridge the callee's ringing is silent, so play our own ringback.
+    private void startRingback() {
+        stopRingback();
+        try {
+            ringbackTone = new ToneGenerator(AudioManager.STREAM_VOICE_CALL, 80);
+            ringbackTone.startTone(ToneGenerator.TONE_CDMA_NETWORK_USA_RINGBACK);
+        } catch (RuntimeException e) {
+            Log.e(TAG, "startRingback: " + e.getMessage());
+            ringbackTone = null;
+        }
+    }
+
+    private void stopRingback() {
+        if (ringbackTone != null) {
+            ringbackTone.stopTone();
+            ringbackTone.release();
+            ringbackTone = null;
+        }
+    }
+
     @NonNull
     private Call.Listener callListener() {
         return new Call.Listener() {
@@ -255,6 +277,7 @@ public class CommioSdkModule extends ReactContextBaseJavaModule {
                 if (CommioSdkModule.this.activeCallInvite != null) {
 //                    sendEvent(CommioSdkModule.this.reactContext, "onIncomingCallRinging", null);
                 } else {
+                    startRingback();
                     sendEvent(CommioSdkModule.this.reactContext, "onOutgoingCallRinging", null);
                 }
                 Log.e(TAG, "onRinging: ");
@@ -263,6 +286,7 @@ public class CommioSdkModule extends ReactContextBaseJavaModule {
             @Override
             public void onConnected(@NonNull Call call) {
                 Log.d(TAG, "Connected");
+                stopRingback();
                 activeCall = call;
 
                 if (CommioSdkModule.this.activeCallInvite != null) {
@@ -285,6 +309,7 @@ public class CommioSdkModule extends ReactContextBaseJavaModule {
 
             @Override
             public void onDisconnected(@NonNull Call call, @Nullable CallException callException) {
+                stopRingback();
                 if (callException != null) {
                     Log.e(TAG, "onDisconnected: " + callException.getLocalizedMessage());
                 }
@@ -304,6 +329,7 @@ public class CommioSdkModule extends ReactContextBaseJavaModule {
             @Override
             public void onConnectFailure(@NonNull Call call, @NonNull CallException callException) {
                 Log.e(TAG, "onConnectFailure: " + callException.getLocalizedMessage());
+                stopRingback();
                 if (CommioSdkModule.this.activeCallInvite != null) {
                     WritableMap payload = getIncomingCallObject(CommioSdkModule.this.incomingCallPayload);
                     sendEvent(
