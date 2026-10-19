@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/smarter-contact-team/react-native-commio/compare/v1.0.0...v1.0.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* SC-20649 play ringback on outbound calls ([5450f28](https://github.com/smarter-contact-team/react-native-commio/commit/5450f28245c12bb9ae061ec423f63fc0be7e9ef5))
+
 ## 1.0.0 (2026-04-30)
 
 
